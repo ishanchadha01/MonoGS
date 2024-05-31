@@ -12,7 +12,7 @@
 import os
 
 import numpy as np
-import open3d as o3d
+# import open3d as o3d
 import torch
 from plyfile import PlyData, PlyElement
 from simple_knn._C import distCUDA2
@@ -108,25 +108,20 @@ class GaussianModel:
         cam = cam_info
         image_ab = (torch.exp(cam.exposure_a)) * cam.original_image + cam.exposure_b
         image_ab = torch.clamp(image_ab, 0.0, 1.0)
-        rgb_raw = (image_ab * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy()
+        rgb = (image_ab * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy()
+        depth = depthmap
 
-        if depthmap is not None:
-            rgb = o3d.geometry.Image(rgb_raw.astype(np.uint8))
-            depth = o3d.geometry.Image(depthmap.astype(np.float32))
-        else:
-            depth_raw = cam.depth
-            if depth_raw is None:
-                depth_raw = np.empty((cam.image_height, cam.image_width))
+        if depth is None:
+            depth = cam.depth
+            if depth is None:
+                depth = np.empty((cam.image_height, cam.image_width))
 
             if self.config["Dataset"]["sensor_type"] == "monocular":
-                depth_raw = (
-                    np.ones_like(depth_raw)
-                    + (np.random.randn(depth_raw.shape[0], depth_raw.shape[1]) - 0.5)
+                depth = (
+                    np.ones_like(depth)
+                    + (np.random.randn(depth.shape[0], depth.shape[1]) - 0.5)
                     * 0.05
                 ) * scale
-
-            rgb = o3d.geometry.Image(rgb_raw.astype(np.uint8))
-            depth = o3d.geometry.Image(depth_raw.astype(np.float32))
 
         return self.create_pcd_from_image_and_depth(cam, rgb, depth, init)
 
@@ -139,31 +134,71 @@ class GaussianModel:
         if "adaptive_pointsize" in self.config["Dataset"]:
             if self.config["Dataset"]["adaptive_pointsize"]:
                 point_size = min(0.05, point_size * np.median(depth))
-        rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
-            rgb,
-            depth,
-            depth_scale=1.0,
-            depth_trunc=100.0,
-            convert_rgb_to_intensity=False,
-        )
+
+        
+        # rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
+        #     rgb,
+        #     depth,
+        #     depth_scale=1.0,
+        #     depth_trunc=100.0,
+        #     convert_rgb_to_intensity=False,
+        # )
+        # manually truncate
+        depth[depth >= 100.0] = 0.0
 
         W2C = getWorld2View2(cam.R, cam.T).cpu().numpy()
-        pcd_tmp = o3d.geometry.PointCloud.create_from_rgbd_image(
-            rgbd,
-            o3d.camera.PinholeCameraIntrinsic(
-                cam.image_width,
-                cam.image_height,
-                cam.fx,
-                cam.fy,
-                cam.cx,
-                cam.cy,
-            ),
-            extrinsic=W2C,
-            project_valid_depth_only=True,
-        )
-        pcd_tmp = pcd_tmp.random_down_sample(1.0 / downsample_factor)
-        new_xyz = np.asarray(pcd_tmp.points)
-        new_rgb = np.asarray(pcd_tmp.colors)
+        # pcd_tmp = o3d.geometry.PointCloud.create_from_rgbd_image(
+        #     rgbd,
+        #     o3d.camera.PinholeCameraIntrinsic(
+        #         cam.image_width,
+        #         cam.image_height,
+        #         cam.fx,
+        #         cam.fy,
+        #         cam.cx,
+        #         cam.cy,
+        #     ),
+        #     extrinsic=W2C,
+        #     project_valid_depth_only=True,
+        # )
+        
+        # find N=num valid pixels
+        num_valid_pixels = depth[depth >= 0].shape[0]
+        # create Nx3 array of pts
+        new_xyz = np.zeros((num_valid_pixels, 3))
+        new_rgb = np.zeros((num_valid_pixels, 3))
+        # camera pose (c2w) = extrinsic.inverse()
+        C2W = np.linalg.inv(W2C)
+        # get focal length, principle point of intrinsic, scale of depths
+
+        # principal_point = [cam.cx, cam.cy]
+        # important, get num of valid pixels (what are valid pixels?)
+        # for each pixel:
+            # z is just depth
+            # x=(j-princ_point[0]) * z / focal[0]
+            # y=(i-princ_point[1]) * z / focal[1]
+            # pt = c2w * [x,y,z,1]
+            # assign pts[valid_cnt] to xyz value, and colors[valid_cnt] to rgb value for this
+        idx = 0
+        for row in range(depth.shape[0]):
+            for col in range(depth.shape[1]):
+                if depth[row, col] >= 0:
+                    z = depth[row, col]
+                    x = (col - cam.cx) * z / cam.fx
+                    y = (row - cam.cy) * z / cam.fy
+                    new_xyz[idx] = ((C2W @ (np.array([[x,y,z,1.0]]).T)).T)[:,:3]
+                    new_rgb[idx] = rgb[row, col]
+                    idx += 1
+
+        # pcd_tmp = pcd_tmp.random_down_sample(1.0 / downsample_factor)
+        #TODO: random downsample pcd tmp
+        total_pts = idx
+        downsample_num_pts = total_pts // downsample_factor
+        downsample_indices = np.random.choice(total_pts, size=downsample_num_pts, replace=False)
+        new_xyz = new_xyz[downsample_indices]
+        new_rgb = new_rgb[downsample_indices]
+
+        # new_xyz = np.asarray(pcd_tmp.points)
+        # new_rgb = np.asarray(pcd_tmp.colors)
 
         pcd = BasicPointCloud(
             points=new_xyz, colors=new_rgb, normals=np.zeros((new_xyz.shape[0], 3))

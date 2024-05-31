@@ -11,7 +11,9 @@ from evo.core.trajectory import PosePath3D, PoseTrajectory3D
 from evo.tools import plot
 from evo.tools.plot import PlotMode
 from evo.tools.settings import SETTINGS
-from matplotlib import pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 import wandb

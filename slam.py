@@ -12,7 +12,7 @@ from munch import munchify
 import wandb
 from gaussian_splatting.scene.gaussian_model import GaussianModel
 from gaussian_splatting.utils.system_utils import mkdir_p
-from gui import gui_utils, slam_gui
+# from gui import gui_utils, slam_gui
 from utils.config_utils import load_config
 from utils.dataset import load_dataset
 from utils.eval_utils import eval_ate, eval_rendering, save_gaussians
@@ -92,19 +92,19 @@ class SLAM:
 
         self.backend.set_hyperparams()
 
-        self.params_gui = gui_utils.ParamsGUI(
-            pipe=self.pipeline_params,
-            background=self.background,
-            gaussians=self.gaussians,
-            q_main2vis=q_main2vis,
-            q_vis2main=q_vis2main,
-        )
+        # self.params_gui = gui_utils.ParamsGUI(
+        #     pipe=self.pipeline_params,
+        #     background=self.background,
+        #     gaussians=self.gaussians,
+        #     q_main2vis=q_main2vis,
+        #     q_vis2main=q_vis2main,
+        # )
 
         backend_process = mp.Process(target=self.backend.run)
-        if self.use_gui:
-            gui_process = mp.Process(target=slam_gui.run, args=(self.params_gui,))
-            gui_process.start()
-            time.sleep(5)
+        # if self.use_gui:
+        #     gui_process = mp.Process(target=slam_gui.run, args=(self.params_gui,))
+        #     gui_process.start()
+        #     time.sleep(5)
 
         backend_process.start()
         self.frontend.run()
@@ -189,10 +189,10 @@ class SLAM:
         backend_queue.put(["stop"])
         backend_process.join()
         Log("Backend stopped and joined the main thread")
-        if self.use_gui:
-            q_main2vis.put(gui_utils.GaussianPacket(finish=True))
-            gui_process.join()
-            Log("GUI Stopped and joined the main thread")
+        # if self.use_gui:
+        #     q_main2vis.put(gui_utils.GaussianPacket(finish=True))
+        #     gui_process.join()
+        #     Log("GUI Stopped and joined the main thread")
 
     def run(self):
         pass
