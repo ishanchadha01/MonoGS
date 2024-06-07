@@ -300,7 +300,7 @@ class BackEnd(mp.Process):
                 if (self.iteration_count % self.gaussian_reset) == 0 and (
                     not update_gaussian
                 ):
-                    Log("Resetting the opacity of non-visible Gaussians")
+                    Log(f"Resetting the opacity of non-visible Gaussians at time {time.time()}")
                     self.gaussians.reset_opacity_nonvisible(visibility_filter_acm)
                     gaussian_split = True
 

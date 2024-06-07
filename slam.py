@@ -151,6 +151,8 @@ class SLAM:
                 FPS,
             )
 
+            Log(f"PSNR before: {rendering_result['mean_psnr']}")
+
             # re-used the frontend queue to retrive the gaussians from the backend.
             while not frontend_queue.empty():
                 frontend_queue.get()
@@ -183,6 +185,7 @@ class SLAM:
                 ATE,
                 FPS,
             )
+            Log(f"PSNR after: {rendering_result['mean_psnr']}")
             wandb.log({"Metrics": metrics_table})
             save_gaussians(self.gaussians, self.save_dir, "final_after_opt", final=True)
 
@@ -199,6 +202,9 @@ class SLAM:
 
 
 if __name__ == "__main__":
+    __spec__ = "ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>)" # have to include this to PDB because of some internal lower level python bug
+
+
     # Set up command line argument parser
     parser = ArgumentParser(description="Training script parameters")
     parser.add_argument("--config", type=str)

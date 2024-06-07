@@ -19,3 +19,4 @@ Dataset:
 
 Results:
   use_gui: False
+  eval_rendering: True

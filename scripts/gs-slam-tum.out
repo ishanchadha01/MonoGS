@@ -1,0 +1,66 @@
+---------------------------------------
+Begin Slurm Prolog: May-31-2024 19:52:40
+Job ID:    231799
+User ID:   ichadha3
+Account:   gts-ychen3538
+Job name:  gs-slam-tum
+Partition: gpu-a100
+QOS:       inferno
+---------------------------------------
+MonoGS: saving results in results/datasets_tum/2024-05-31-19-53-09
+MonoGS: Resetting the system
+MonoGS: Initialized map
+MonoGS: Keyframes lacks sufficient overlap to initialize the map, resetting.
+MonoGS: Resetting the system
+MonoGS: Initialized map
+MonoGS: Resetting the opacity of non-visible Gaussians at time 
+1717199727.4420974
+MonoGS: Performing initial BA for initialization
+MonoGS: Initialized SLAM
+MonoGS: Evaluating ATE at frame:  172
+Eval: RMSE ATE [m] 0.26961049689109595
+MonoGS: Resetting the opacity of non-visible Gaussians at time 
+1717199856.8227208
+MonoGS: Evaluating ATE at frame:  272
+Eval: RMSE ATE [m] 0.36419588406459386
+MonoGS: Evaluating ATE at frame:  362
+Eval: RMSE ATE [m] 0.37638003321236807
+MonoGS: Evaluating ATE at frame:  458
+Eval: RMSE ATE [m] 0.5308872442618995
+MonoGS: Evaluating ATE at frame:  552
+Eval: RMSE ATE [m] 0.6857546765285685
+MonoGS: Evaluating ATE at frame:  644
+Eval: RMSE ATE [m] 0.7774693420566746
+MonoGS: Evaluating ATE at frame:  733
+Eval: RMSE ATE [m] 0.8898787430460101
+MonoGS: Evaluating ATE at frame:  1322
+Eval: RMSE ATE [m] 1.0071551863738297
+MonoGS: Evaluating ATE at frame:  1479
+Eval: RMSE ATE [m] 1.1437118305859744
+MonoGS: Evaluating ATE at frame:  1576
+Eval: RMSE ATE [m] 1.2126005711103236
+MonoGS: Evaluating ATE at frame:  1675
+Eval: RMSE ATE [m] 1.2919915689565842
+MonoGS: Evaluating ATE at frame:  1771
+Eval: RMSE ATE [m] 1.2848011331010023
+MonoGS: Evaluating ATE at frame:  2114
+Eval: RMSE ATE [m] 1.296358913401522
+Eval: RMSE ATE [m] 1.2964919064058684
+Eval: Total time 890.3473125
+Eval: Total FPS 2.8247403734371352
+MonoGS: Backend stopped and joined the main thread
+MonoGS: Done.
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+---------------------------------------
+Begin Slurm Epilog: May-31-2024 20:08:11
+Job ID:        231799
+Array Job ID:  _4294967294
+User ID:       ichadha3
+Account:       gts-ychen3538
+Job name:      gs-slam-tum
+Resources:     cpu=8,gres/gpu:a100=1,mem=32G,node=1
+Rsrc Used:     cput=02:04:08,vmem=6920760K,walltime=00:15:31,mem=6576976K,energy_used=0
+Partition:     gpu-a100
+QOS:           inferno
+Nodes:         atl1-1-01-006-9-0
+---------------------------------------

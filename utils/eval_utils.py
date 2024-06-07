@@ -125,7 +125,7 @@ def eval_rendering(
     kf_indices,
     iteration="final",
 ):
-    interval = 5
+    interval = 1
     img_pred, img_gt, saved_frame_idx = [], [], []
     end_idx = len(frames) - 1 if iteration == "final" or "before_opt" else iteration
     psnr_array, ssim_array, lpips_array = [], [], []

@@ -1,0 +1,38 @@
+---------------------------------------
+Begin Slurm Prolog: May-31-2024 13:53:14
+Job ID:    229511
+User ID:   ichadha3
+Account:   gts-ychen3538
+Job name:  gs-slam-tum-v100
+Partition: gpu-v100
+QOS:       inferno
+---------------------------------------
+MonoGS: saving results in results/datasets_tum/2024-05-31-13-53-31
+MonoGS: Resetting the system
+MonoGS: Initialized map
+Process Process-3:
+Traceback (most recent call last):
+  File "/storage/home/hcoda1/3/ichadha3/.conda/envs/MonoGS/lib/python3.7/multiprocessing/process.py", line 297, in _bootstrap
+    self.run()
+  File "/storage/home/hcoda1/3/ichadha3/.conda/envs/MonoGS/lib/python3.7/multiprocessing/process.py", line 99, in run
+    self._target(*self._args, **self._kwargs)
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/utils/slam_backend.py", line 473, in run
+    self.map(self.current_window, iters=iter_per_kf)
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/utils/slam_backend.py", line 183, in map
+    render_pkg["render"],
+TypeError: 'NoneType' object is not subscriptable
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+slurmstepd: error: *** JOB 229511 ON atl1-1-02-011-33-0 CANCELLED AT 2024-05-31T18:42:20 ***
+---------------------------------------
+Begin Slurm Epilog: May-31-2024 18:42:21
+Job ID:        229511
+Array Job ID:  _4294967294
+User ID:       ichadha3
+Account:       gts-ychen3538
+Job name:      gs-slam-tum-v100
+Resources:     cpu=12,gres/gpu:v100=1,mem=48G,node=1
+Rsrc Used:     cput=2-09:49:12,vmem=5852804K,walltime=04:49:06,mem=4037720K,energy_used=0
+Partition:     gpu-v100
+QOS:           inferno
+Nodes:         atl1-1-02-011-33-0
+---------------------------------------

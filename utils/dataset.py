@@ -45,6 +45,68 @@ class ReplicaParser:
         self.frames = frames
 
 
+class GtriParser:
+    def __init__(self, input_folder):
+        self.input_folder = input_folder
+        self.load_poses(self.input_folder, frame_rate=32)
+        self.n_img = len(self.color_paths)
+
+    def parse_list(self, filepath, skiprows=0):
+        data = np.loadtxt(filepath, delimiter=" ", dtype=np.unicode_, skiprows=skiprows)
+        return data
+
+    def associate_frames(self, tstamp_image, tstamp_pose, max_dt=8):
+        associations = []
+        for i, t in enumerate(tstamp_image):
+            j = np.argmin(np.abs(tstamp_pose - t))
+            if np.abs(tstamp_pose[j] - t) < max_dt:
+                associations.append((i, j))
+
+        return associations
+
+    def load_poses(self, datapath, frame_rate=-1):
+        if os.path.isfile(os.path.join(datapath, "groundtruth.txt")):
+            pose_list = os.path.join(datapath, "groundtruth.txt")
+        elif os.path.isfile(os.path.join(datapath, "pose.txt")):
+            pose_list = os.path.join(datapath, "pose.txt")
+
+        image_list = os.path.join(datapath, "rgb.txt")
+
+        image_data = self.parse_list(image_list)
+        pose_data = self.parse_list(pose_list, skiprows=1)
+        pose_vecs = pose_data[:, 0:].astype(np.float64)
+
+        tstamp_image = image_data[:, 0].astype(np.float64)
+        tstamp_pose = pose_data[:, 0].astype(np.float64)
+        associations = self.associate_frames(tstamp_image, tstamp_pose)
+
+        indicies = [0]
+        for i in range(1, len(associations)):
+            t0 = tstamp_image[associations[indicies[-1]][0]]
+            t1 = tstamp_image[associations[i][0]]
+            if t1 - t0 > 1.0 / frame_rate:
+                indicies += [i]
+
+        self.color_paths, self.poses, self.depth_paths, self.frames = [], [], [], []
+
+        for ix in indicies:
+            (i, k) = associations[ix]
+            self.color_paths += [os.path.join(datapath, image_data[i, 1])]
+
+            quat = pose_vecs[k][4:]
+            trans = pose_vecs[k][1:4]
+            T = trimesh.transformations.quaternion_matrix(np.roll(quat, 1))
+            T[:3, 3] = trans
+            self.poses += [np.linalg.inv(T)]
+
+            frame = {
+                "file_path": str(os.path.join(datapath, image_data[i, 1])),
+                "transform_matrix": (np.linalg.inv(T)).tolist(),
+            }
+
+            self.frames.append(frame)
+
+
 class TUMParser:
     def __init__(self, input_folder):
         self.input_folder = input_folder
@@ -519,6 +581,17 @@ class RealsenseDataset(BaseDataset):
         return image, depth, pose
 
 
+class GtriDataset(MonocularDataset):
+    def __init__(self, args, path, config):
+        super().__init__(args, path, config)
+        dataset_path = config["Dataset"]["dataset_path"]
+        parser = GtriParser(dataset_path)
+        self.num_imgs = parser.n_img
+        self.color_paths = parser.color_paths
+        self.depth_paths = parser.depth_paths
+        self.poses = parser.poses
+
+
 def load_dataset(args, path, config):
     if config["Dataset"]["type"] == "tum":
         return TUMDataset(args, path, config)
@@ -528,5 +601,7 @@ def load_dataset(args, path, config):
         return EurocDataset(args, path, config)
     elif config["Dataset"]["type"] == "realsense":
         return RealsenseDataset(args, path, config)
+    elif config["Dataset"]["type"] == "gtri":
+        return GtriDataset(args, path, config)
     else:
         raise ValueError("Unknown dataset type")
