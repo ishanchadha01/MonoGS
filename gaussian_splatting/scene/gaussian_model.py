@@ -29,6 +29,8 @@ from gaussian_splatting.utils.general_utils import (
 from gaussian_splatting.utils.graphics_utils import BasicPointCloud, getWorld2View2
 from gaussian_splatting.utils.sh_utils import RGB2SH
 from gaussian_splatting.utils.system_utils import mkdir_p
+from gaussian_splatting.utils.deform_utils import compute_plane_smoothness
+from gaussian_splatting.scene.deform_network import deform_network
 
 
 class GaussianModel:
@@ -44,6 +46,10 @@ class GaussianModel:
         self._opacity = torch.empty(0, device="cuda")
         self.max_radii2D = torch.empty(0, device="cuda")
         self.xyz_gradient_accum = torch.empty(0, device="cuda")
+
+        self._deformation_table = torch.empty(0)
+        self._deformation = deform_network(config) #TODO: make sure config is handled correctly
+        
 
         self.unique_kfIDs = torch.empty(0).int()
         self.n_obs = torch.empty(0).int()
@@ -135,49 +141,19 @@ class GaussianModel:
             if self.config["Dataset"]["adaptive_pointsize"]:
                 point_size = min(0.05, point_size * np.median(depth))
 
-        
-        # rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
-        #     rgb,
-        #     depth,
-        #     depth_scale=1.0,
-        #     depth_trunc=100.0,
-        #     convert_rgb_to_intensity=False,
-        # )
         # manually truncate
         depth[depth >= 100.0] = 0.0
 
         W2C = getWorld2View2(cam.R, cam.T).cpu().numpy()
-        # pcd_tmp = o3d.geometry.PointCloud.create_from_rgbd_image(
-        #     rgbd,
-        #     o3d.camera.PinholeCameraIntrinsic(
-        #         cam.image_width,
-        #         cam.image_height,
-        #         cam.fx,
-        #         cam.fy,
-        #         cam.cx,
-        #         cam.cy,
-        #     ),
-        #     extrinsic=W2C,
-        #     project_valid_depth_only=True,
-        # )
         
         # find N=num valid pixels
         num_valid_pixels = depth[depth >= 0].shape[0]
         # create Nx3 array of pts
         new_xyz = np.zeros((num_valid_pixels, 3))
         new_rgb = np.zeros((num_valid_pixels, 3))
-        # camera pose (c2w) = extrinsic.inverse()
         C2W = np.linalg.inv(W2C)
-        # get focal length, principle point of intrinsic, scale of depths
 
-        # principal_point = [cam.cx, cam.cy]
-        # important, get num of valid pixels (what are valid pixels?)
-        # for each pixel:
-            # z is just depth
-            # x=(j-princ_point[0]) * z / focal[0]
-            # y=(i-princ_point[1]) * z / focal[1]
-            # pt = c2w * [x,y,z,1]
-            # assign pts[valid_cnt] to xyz value, and colors[valid_cnt] to rgb value for this
+        # get focal length, principle point of intrinsic, scale of depths
         idx = 0
         for row in range(depth.shape[0]):
             for col in range(depth.shape[1]):
@@ -189,16 +165,12 @@ class GaussianModel:
                     new_rgb[idx] = rgb[row, col]
                     idx += 1
 
-        # pcd_tmp = pcd_tmp.random_down_sample(1.0 / downsample_factor)
-        #TODO: random downsample pcd tmp
+        # random downsample pcd tmp
         total_pts = idx
         downsample_num_pts = total_pts // downsample_factor
         downsample_indices = np.random.choice(total_pts, size=downsample_num_pts, replace=False)
         new_xyz = new_xyz[downsample_indices]
         new_rgb = new_rgb[downsample_indices]
-
-        # new_xyz = np.asarray(pcd_tmp.points)
-        # new_rgb = np.asarray(pcd_tmp.colors)
 
         pcd = BasicPointCloud(
             points=new_xyz, colors=new_rgb, normals=np.zeros((new_xyz.shape[0], 3))
@@ -256,6 +228,10 @@ class GaussianModel:
 
         new_unique_kfIDs = torch.ones((new_xyz.shape[0])).int() * kf_id
         new_n_obs = torch.zeros((new_xyz.shape[0])).int()
+
+        self._deformation = self._deformation.to("cuda")
+        self._deformation_table = torch.gt(torch.ones((self.get_xyz.shape[0]),device="cuda"),0)
+
         self.densification_postfix(
             new_xyz,
             new_features_dc,
@@ -263,6 +239,7 @@ class GaussianModel:
             new_opacity,
             new_scaling,
             new_rotation,
+            new_deformation_table=None, #TODO: get new table wherever this is called
             new_kf_ids=new_unique_kfIDs,
             new_n_obs=new_n_obs,
         )
@@ -313,6 +290,16 @@ class GaussianModel:
                 "lr": training_args.rotation_lr,
                 "name": "rotation",
             },
+            {
+                'params': list(self._deformation.get_mlp_parameters()), 
+                'lr': training_args.position_lr_init * self.spatial_lr_scale, 
+                "name": "deformation"
+            },
+            {
+                'params': list(self._deformation.get_grid_parameters()), 
+                'lr': training_args.position_lr_init * self.spatial_lr_scale, 
+                "name": "grid"
+            }
         ]
 
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
@@ -321,6 +308,18 @@ class GaussianModel:
             lr_final=training_args.position_lr_final * self.spatial_lr_scale,
             lr_delay_mult=training_args.position_lr_delay_mult,
             max_steps=training_args.position_lr_max_steps,
+        )
+        self.deformation_scheduler_args = get_expon_lr_func(
+            lr_init=training_args.position_lr_init*self.spatial_lr_scale,
+            lr_final=training_args.position_lr_final*self.spatial_lr_scale,
+            lr_delay_mult=training_args.position_lr_delay_mult,
+            max_steps=training_args.position_lr_max_steps
+        ) 
+        self.grid_scheduler_args = get_expon_lr_func(
+            lr_init=training_args.position_lr_init*self.spatial_lr_scale,
+            lr_final=training_args.position_lr_final*self.spatial_lr_scale,
+            lr_delay_mult=training_args.position_lr_delay_mult,
+            max_steps=training_args.position_lr_max_steps
         )
 
         self.lr_init = training_args.position_lr_init * self.spatial_lr_scale
@@ -333,16 +332,14 @@ class GaussianModel:
         for param_group in self.optimizer.param_groups:
             if param_group["name"] == "xyz":
                 # lr = self.xyz_scheduler_args(iteration)
-                lr = helper(
-                    iteration,
-                    lr_init=self.lr_init,
-                    lr_final=self.lr_final,
-                    lr_delay_mult=self.lr_delay_mult,
-                    max_steps=self.max_steps,
-                )
-
+                lr = self.xyz_scheduler_args(iteration)
                 param_group["lr"] = lr
-                return lr
+        if  "grid" in param_group["name"]:
+            lr = self.grid_scheduler_args(iteration)
+            param_group['lr'] = lr
+        elif param_group["name"] == "deformation":
+            lr = self.deformation_scheduler_args(iteration)
+            param_group['lr'] = lr
 
     def construct_list_of_attributes(self):
         l = ["x", "y", "z", "nx", "ny", "nz"]
@@ -549,9 +546,14 @@ class GaussianModel:
         self._rotation = optimizable_tensors["rotation"]
 
         self.xyz_gradient_accum = self.xyz_gradient_accum[valid_points_mask]
-
         self.denom = self.denom[valid_points_mask]
         self.max_radii2D = self.max_radii2D[valid_points_mask]
+
+        # deformation
+        self._deformation_accum = self._deformation_accum[valid_points_mask]
+        self._deformation_tabel = self._deformation_table[valid_points_mask]
+
+        # SLAM
         self.unique_kfIDs = self.unique_kfIDs[valid_points_mask.cpu()]
         self.n_obs = self.n_obs[valid_points_mask.cpu()]
 
@@ -597,6 +599,7 @@ class GaussianModel:
         new_opacities,
         new_scaling,
         new_rotation,
+        new_deformation_table=None,
         new_kf_ids=None,
         new_n_obs=None,
     ):
@@ -620,10 +623,18 @@ class GaussianModel:
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.denom = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
+
+        # SLAM update
         if new_kf_ids is not None:
             self.unique_kfIDs = torch.cat((self.unique_kfIDs, new_kf_ids)).int()
         if new_n_obs is not None:
             self.n_obs = torch.cat((self.n_obs, new_n_obs)).int()
+
+        # Deformation update
+        if new_deformation_table is not None:
+            self._deformation_table = torch.cat([self._deformation_table,new_deformation_table],-1)
+        self._deformation_accum = torch.zeros((self.get_xyz.shape[0], 3), device="cuda")
+
 
     def densify_and_split(self, grads, grad_threshold, scene_extent, N=2):
         n_init_points = self.get_xyz.shape[0]
@@ -655,6 +666,8 @@ class GaussianModel:
         new_kf_id = self.unique_kfIDs[selected_pts_mask.cpu()].repeat(N)
         new_n_obs = self.n_obs[selected_pts_mask.cpu()].repeat(N)
 
+        new_deformation_table = self._deformation_table[selected_pts_mask].repeat(N)
+
         self.densification_postfix(
             new_xyz,
             new_features_dc,
@@ -662,6 +675,7 @@ class GaussianModel:
             new_opacity,
             new_scaling,
             new_rotation,
+            new_deformation_table,
             new_kf_ids=new_kf_id,
             new_n_obs=new_n_obs,
         )
@@ -695,6 +709,9 @@ class GaussianModel:
 
         new_kf_id = self.unique_kfIDs[selected_pts_mask.cpu()]
         new_n_obs = self.n_obs[selected_pts_mask.cpu()]
+
+        new_deformation_table = self._deformation_table[selected_pts_mask]
+
         self.densification_postfix(
             new_xyz,
             new_features_dc,
@@ -702,6 +719,7 @@ class GaussianModel:
             new_opacities,
             new_scaling,
             new_rotation,
+            new_deformation_table,
             new_kf_ids=new_kf_id,
             new_n_obs=new_n_obs,
         )
@@ -728,3 +746,57 @@ class GaussianModel:
             viewspace_point_tensor.grad[update_filter, :2], dim=-1, keepdim=True
         )
         self.denom[update_filter] += 1
+
+    def compute_deformation(self,time):    
+        deform = self._deformation[:,:,:time].sum(dim=-1)
+        xyz = self._xyz + deform
+        return xyz
+
+    @torch.no_grad()
+    def update_deformation_table(self,threshold):
+        # Only keep large enough values in deformation table
+        self._deformation_table = torch.gt(self._deformation_accum.max(dim=-1).values/100,threshold)
+
+    def _plane_regulation(self):
+        multi_res_grids = self._deformation.deformation_net.grid.grids
+        total = 0
+        # model.grids is 6 x [1, rank * F_dim, reso, reso]
+        for grids in multi_res_grids:
+            if len(grids) == 3:
+                time_grids = []
+            else:
+                time_grids =  [0,1,3]
+            for grid_id in time_grids:
+                total += compute_plane_smoothness(grids[grid_id])
+        return total
+    
+    def _time_regulation(self):
+        multi_res_grids = self._deformation.deformation_net.grid.grids
+        total = 0
+        # model.grids is 6 x [1, rank * F_dim, reso, reso]
+        for grids in multi_res_grids:
+            if len(grids) == 3:
+                time_grids = []
+            else:
+                time_grids =[2, 4, 5]
+            for grid_id in time_grids:
+                total += compute_plane_smoothness(grids[grid_id])
+        return total
+    
+    def _l1_regulation(self):
+                # model.grids is 6 x [1, rank * F_dim, reso, reso]
+        multi_res_grids = self._deformation.deformation_net.grid.grids
+
+        total = 0.0
+        for grids in multi_res_grids:
+            if len(grids) == 3:
+                continue
+            else:
+                # These are the spatiotemporal grids
+                spatiotemporal_grids = [2, 4, 5]
+            for grid_id in spatiotemporal_grids:
+                total += torch.abs(1 - grids[grid_id]).mean()
+        return total
+
+    def compute_regulation(self, time_smoothness_weight, l1_time_planes_weight, plane_tv_weight):
+        return plane_tv_weight * self._plane_regulation() + time_smoothness_weight * self._time_regulation() + l1_time_planes_weight * self._l1_regulation()
