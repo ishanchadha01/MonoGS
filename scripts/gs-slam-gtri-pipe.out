@@ -1,0 +1,26 @@
+---------------------------------------
+Begin Slurm Prolog: Jun-17-2024 12:00:00
+Job ID:    425127
+User ID:   ichadha3
+Account:   gts-ychen3538
+Job name:  gs-slam-gtri-pipe
+Partition: gpu-a100
+QOS:       inferno
+---------------------------------------
+MonoGS: saving results in results/datasets_pipe/2024-06-17-12-04-08
+MonoGS: Resetting the system
+MonoGS: Initialized map
+slurmstepd: error: *** JOB 425127 ON atl1-1-02-018-27-0 CANCELLED AT 2024-06-18T00:00:19 DUE TO TIME LIMIT ***
+---------------------------------------
+Begin Slurm Epilog: Jun-18-2024 00:00:20
+Job ID:        425127
+Array Job ID:  _4294967294
+User ID:       ichadha3
+Account:       gts-ychen3538
+Job name:      gs-slam-gtri-pipe
+Resources:     cpu=8,gres/gpu:a100=1,mem=32G,node=1
+Rsrc Used:     cput=4-00:02:32,vmem=7748092K,walltime=12:00:19,mem=7708536K,energy_used=0
+Partition:     gpu-a100
+QOS:           inferno
+Nodes:         atl1-1-02-018-27-0
+---------------------------------------
