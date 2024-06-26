@@ -1,0 +1,44 @@
+---------------------------------------
+Begin Slurm Prolog: Jun-18-2024 13:36:33
+Job ID:    431374
+User ID:   ichadha3
+Account:   gts-ychen3538
+Job name:  gs-slam-gtri-jetski_eval
+Partition: gpu-a100
+QOS:       inferno
+---------------------------------------
+MonoGS: saving results in results/datasets_jetski/2024-06-18-13-36-52
+MonoGS: Resetting the system
+MonoGS: Initialized map
+Process Process-3:
+Traceback (most recent call last):
+  File "/storage/home/hcoda1/3/ichadha3/.conda/envs/MonoGS/lib/python3.7/multiprocessing/process.py", line 297, in _bootstrap
+    self.run()
+  File "/storage/home/hcoda1/3/ichadha3/.conda/envs/MonoGS/lib/python3.7/multiprocessing/process.py", line 99, in run
+    self._target(*self._args, **self._kwargs)
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/utils/slam_backend.py", line 417, in run
+    self.add_next_kf(cur_frame_idx, viewpoint, depth_map=depth_map)
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/utils/slam_backend.py", line 69, in add_next_kf
+    viewpoint, kf_id=frame_idx, init=init, scale=scale, depthmap=depth_map
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/gaussian_splatting/scene/gaussian_model.py", line 274, in extend_from_pcd_seq
+    self.create_pcd_from_image(cam_info, init, scale=scale, depthmap=depthmap)
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/gaussian_splatting/scene/gaussian_model.py", line 126, in create_pcd_from_image
+    return self.create_pcd_from_image_and_depth(cam, rgb, depth, init)
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/gaussian_splatting/scene/gaussian_model.py", line 220, in create_pcd_from_image_and_depth
+    distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()),
+RuntimeError: tabulate: failed to synchronize: cudaErrorInvalidConfiguration: invalid configuration argument
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+slurmstepd: error: *** JOB 431374 ON atl1-1-02-018-27-0 CANCELLED AT 2024-06-19T01:37:00 DUE TO TIME LIMIT ***
+---------------------------------------
+Begin Slurm Epilog: Jun-19-2024 01:37:01
+Job ID:        431374
+Array Job ID:  _4294967294
+User ID:       ichadha3
+Account:       gts-ychen3538
+Job name:      gs-slam-gtri-jetski_eval
+Resources:     cpu=8,gres/gpu:a100=1,mem=32G,node=1
+Rsrc Used:     cput=4-00:03:36,vmem=5073060K,walltime=12:00:27,mem=4431784K,energy_used=0
+Partition:     gpu-a100
+QOS:           inferno
+Nodes:         atl1-1-02-018-27-0
+---------------------------------------

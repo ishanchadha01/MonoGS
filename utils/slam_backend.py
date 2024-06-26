@@ -1,9 +1,28 @@
+### DEBUG
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """A Pdb subclass that may be used
+    from a forked multiprocessing child
+
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+###
+
 import random
 import time
 
 import torch
 import torch.multiprocessing as mp
 from tqdm import tqdm
+import numpy as np
 
 from gaussian_splatting.gaussian_renderer import render
 from gaussian_splatting.utils.loss_utils import l1_loss, ssim
@@ -65,6 +84,11 @@ class BackEnd(mp.Process):
         )
 
     def add_next_kf(self, frame_idx, viewpoint, init=False, scale=2.0, depth_map=None):
+        # fpdb = ForkedPdb()
+        # fpdb.set_trace()
+        all_nan = np.all(np.isnan(depth_map)) #TODO: this is the workaround - why does it become NaN in the first place though?
+        if all_nan:
+            depth_map = None
         self.gaussians.extend_from_pcd_seq(
             viewpoint, kf_id=frame_idx, init=init, scale=scale, depthmap=depth_map
         )

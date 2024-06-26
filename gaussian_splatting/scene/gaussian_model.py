@@ -9,6 +9,25 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
+
+### DEBUG
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """A Pdb subclass that may be used
+    from a forked multiprocessing child
+
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+###
+
 import os
 
 import numpy as np
@@ -111,6 +130,8 @@ class GaussianModel:
         rgb = (image_ab * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy()
         depth = depthmap
 
+        # fpdb = ForkedPdb()
+        # fpdb.set_trace()
         if depth is None:
             depth = cam.depth
             if depth is None:
@@ -122,6 +143,7 @@ class GaussianModel:
                     + (np.random.randn(depth.shape[0], depth.shape[1]) - 0.5)
                     * 0.05
                 ) * scale
+                print(f"depth shape when its none {depth.shape}")
 
         return self.create_pcd_from_image_and_depth(cam, rgb, depth, init)
 
@@ -214,7 +236,9 @@ class GaussianModel:
         )
         features[:, :3, 0] = fused_color
         features[:, 3:, 1:] = 0.0
-
+        print(f"size of erroring array {np.asarray(pcd.points).shape}")
+        # fpdb = ForkedPdb()
+        # fpdb.set_trace()
         dist2 = (
             torch.clamp_min(
                 distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()),

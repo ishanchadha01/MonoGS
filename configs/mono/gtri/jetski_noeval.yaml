@@ -1,0 +1,21 @@
+inherit_from: "configs/mono/gtri/base_config.yaml"
+
+Dataset:
+  dataset_path: "datasets/jetski/"
+  Calibration:
+    fx: 65.0
+    fy: 65.0
+    cx: 640.0
+    cy: 360.0
+    k1: 0.0
+    k2: 0.0
+    p1: 0.0
+    p2: 0.0
+    k3: 0.0
+    width: 1280
+    height: 720
+    distorted: False
+
+Results:
+  use_gui: False
+  eval_rendering: False

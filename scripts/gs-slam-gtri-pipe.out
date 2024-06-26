@@ -1,0 +1,39 @@
+---------------------------------------
+Begin Slurm Prolog: Jun-18-2024 11:37:03
+Job ID:    431363
+User ID:   ichadha3
+Account:   gts-ychen3538
+Job name:  gs-slam-gtri-pipe
+Partition: gpu-a100
+QOS:       inferno
+---------------------------------------
+MonoGS: saving results in results/datasets_pipe/2024-06-18-11-37-59
+Traceback (most recent call last):
+  File "slam.py", line 258, in <module>
+    slam = SLAM(config, save_dir=save_dir)
+  File "slam.py", line 56, in __init__
+    model_params, model_params.source_path, config=config
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/utils/dataset.py", line 605, in load_dataset
+    return GtriDataset(args, path, config)
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/utils/dataset.py", line 588, in __init__
+    parser = GtriParser(dataset_path)
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/utils/dataset.py", line 51, in __init__
+    self.load_poses(self.input_folder, frame_rate=32)
+  File "/storage/coda1/p-ychen3538/0/ichadha3/ishan/monogs-no-o3d/MonoGS/utils/dataset.py", line 98, in load_poses
+    T = trimesh.transformations.quaternion_matrix(np.roll(quat, 1))
+  File "/storage/home/hcoda1/3/ichadha3/.conda/envs/MonoGS/lib/python3.7/site-packages/trimesh/transformations.py", line 1338, in quaternion_matrix
+    q = np.array(quaternion, dtype=np.float64).reshape((-1, 4))
+ValueError: cannot reshape array of size 3 into shape (4)
+---------------------------------------
+Begin Slurm Epilog: Jun-18-2024 11:38:06
+Job ID:        431363
+Array Job ID:  _4294967294
+User ID:       ichadha3
+Account:       gts-ychen3538
+Job name:      gs-slam-gtri-pipe
+Resources:     cpu=8,gres/gpu:a100=1,mem=32G,node=1
+Rsrc Used:     cput=00:22:32,vmem=938580K,walltime=00:02:49,mem=146708K,energy_used=0
+Partition:     gpu-a100
+QOS:           inferno
+Nodes:         atl1-1-02-018-35-0
+---------------------------------------
